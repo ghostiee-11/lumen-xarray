@@ -47,10 +47,12 @@ The dashboard auto-adapts to **any** xarray dataset - widgets, tabs, and SQL que
 |-----|-----------|
 | Full View | ![Full](assets/custom_full.png) |
 | Spatial Heatmap | ![Heatmap](assets/custom_spatial_heatmap.png) |
-| Precipitation | ![Precip](assets/custom_precipitation_heatmap.png) |
 | Time Series | ![TS](assets/custom_time_series.png) |
 | Anomaly | ![Anom](assets/custom_anomaly.png) |
 | Rolling Mean | ![Roll](assets/custom_rolling_mean.png) |
+| Distribution | ![Dist](assets/custom_distribution.png) |
+| Compare Variables | ![Compare](assets/custom_compare_variables.png) |
+| Statistics | ![Stats](assets/custom_statistics.png) |
 | SQL Explorer | ![SQL](assets/custom_sql_explorer.png) |
 | Dataset Info | ![Info](assets/custom_dataset_info.png) |
 
@@ -70,10 +72,10 @@ PYTHONPATH=. panel serve examples/dashboard.py --show --args satellite.h5
 
 The dashboard automatically:
 - Detects time, lat/lon, and arbitrary dimensions - generates appropriate filter widgets
-- Creates spatial heatmap, time series, anomaly, and rolling mean tabs based on available dimensions
-- Supports multi-variable datasets with a variable selector
+- Creates spatial heatmap, time series, anomaly, rolling mean, distribution, and profile tabs based on available dimensions
+- Supports multi-variable datasets with a variable selector and cross-variable scatter plots with correlation
 - Allows uploading new datasets or loading from file path / URL at runtime
-- Shows dataset metadata, size estimates, and a SQL explorer
+- Shows dataset statistics, metadata, size estimates, a SQL explorer, and data export (CSV/Parquet/JSON)
 
 ---
 

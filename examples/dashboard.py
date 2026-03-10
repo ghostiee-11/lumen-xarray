@@ -1,5 +1,5 @@
 """
-lumen-xarray Dashboard — Interactive explorer for any xarray dataset.
+lumen-xarray Dashboard - Interactive explorer for any xarray dataset.
 
 Run:
     PYTHONPATH=. panel serve examples/dashboard.py --show
@@ -10,12 +10,11 @@ import sys
 import tempfile
 import argparse
 
-import numpy as np
 import pandas as pd
 import panel as pn
 import holoviews as hv
 import xarray as xr
-import hvplot.pandas  # noqa: F401 — registers hvplot accessor
+import hvplot.pandas  # noqa: F401
 
 pn.extension("tabulator", notifications=True)
 hv.extension("bokeh")
@@ -28,11 +27,11 @@ from lumen_xarray.transforms import (
 )
 
 
-# ────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------
 # State: holds the current source + derived info
-# ────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------
 class AppState:
-    """Mutable application state — replaced when a new dataset is loaded."""
+    """Mutable application state - replaced when a new dataset is loaded."""
 
     def __init__(self, source, ds, name):
         self.source = source
@@ -67,9 +66,9 @@ def _load_demo():
 state = _load_demo()
 
 
-# ────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------
 # Sidebar: Data loader (file upload + path input)
-# ────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------
 file_input = pn.widgets.FileInput(
     name="Upload Dataset",
     accept=",".join(XARRAY_EXTENSIONS),
@@ -84,11 +83,11 @@ path_input = pn.widgets.TextInput(
 load_btn = pn.widgets.Button(name="Load", button_type="primary", width=250)
 load_status = pn.pane.Markdown("", width=250)
 
-# Dynamic control widgets — rebuilt on dataset change
+# Dynamic control widgets - rebuilt on dataset change
 controls_column = pn.Column(width=270)
 analysis_widgets_column = pn.Column(width=270)
 
-# These are always present
+# Always present analysis widgets
 resample_freq = pn.widgets.Select(
     name="Resample", options=["D", "W", "MS", "QS", "YS"], value="MS",
 )
@@ -99,7 +98,7 @@ rolling_window = pn.widgets.IntSlider(
     name="Rolling Window", start=1, end=90, value=30,
 )
 
-# Dynamic widgets — rebuilt per dataset
+# Dynamic widgets - rebuilt per dataset
 time_range = None
 lat_range = None
 lon_range = None
@@ -187,9 +186,9 @@ def _build_controls():
 _build_controls()
 
 
-# ────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------
 # Dataset loading logic
-# ────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------
 def _load_from_path(path):
     global state
     try:
@@ -238,9 +237,9 @@ def _on_load_click(event):
 load_btn.on_click(_on_load_click)
 
 
-# ────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------
 # Filtering helpers
-# ────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------
 def _current_var():
     return var_select.value if var_select else state.primary_var
 
@@ -282,11 +281,11 @@ def _get_filtered():
     return df
 
 
-# ────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------
 # Apply button: triggers plot updates
-# ────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------
 apply_btn = pn.widgets.Button(name="Apply Filters", button_type="success", width=270)
-_update_counter = pn.widgets.IntInput(value=0, visible=False)  # reactive trigger
+_update_counter = pn.widgets.IntInput(value=0, visible=False)
 
 def _on_apply(event):
     _update_counter.value += 1
@@ -294,9 +293,9 @@ def _on_apply(event):
 apply_btn.on_click(_on_apply)
 
 
-# ────────────────────────────────────────────────────────────
-# Visualization panels (each returns an hvplot object)
-# ────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------
+# Tab 1: Spatial Heatmap
+# ----------------------------------------------------------------
 @pn.depends(_update_counter)
 def _spatial_heatmap(trigger=None):
     s = state
@@ -306,7 +305,6 @@ def _spatial_heatmap(trigger=None):
         return pn.pane.Markdown("No data for selected range.")
 
     if s.has_spatial:
-        # Aggregate all non-spatial dims (time, level, etc.)
         non_spatial = [d for d in s.dim_info if d not in (s.lat_key, s.lon_key) and d in df.columns]
         agg = DimensionAggregate(
             dimensions=non_spatial, method="mean", value_columns=[var],
@@ -328,6 +326,9 @@ def _spatial_heatmap(trigger=None):
     return pn.pane.Markdown("Need 2+ spatial dimensions for heatmap.")
 
 
+# ----------------------------------------------------------------
+# Tab 2: Time Series
+# ----------------------------------------------------------------
 @pn.depends(_update_counter, resample_freq)
 def _time_series(trigger=None, freq=None):
     s = state
@@ -349,6 +350,9 @@ def _time_series(trigger=None, freq=None):
     )
 
 
+# ----------------------------------------------------------------
+# Tab 3: Anomaly
+# ----------------------------------------------------------------
 @pn.depends(_update_counter, anomaly_groupby)
 def _anomaly(trigger=None, groupby=None):
     s = state
@@ -374,6 +378,9 @@ def _anomaly(trigger=None, groupby=None):
     )
 
 
+# ----------------------------------------------------------------
+# Tab 4: Rolling Mean
+# ----------------------------------------------------------------
 @pn.depends(_update_counter, rolling_window)
 def _rolling(trigger=None, window=None):
     s = state
@@ -394,17 +401,256 @@ def _rolling(trigger=None, window=None):
     )
     smooth = smoothed.hvplot.line(
         x=s.time_key, y=rolling_col, color="#FF5722",
-        label=f"{rolling_window.value}-day Mean",
+        label=f"{rolling_window.value}-step Mean",
     )
     return (raw * smooth).opts(
-        title=f"{var} — {rolling_window.value}-day Rolling Mean",
+        title=f"{var} - {rolling_window.value}-step Rolling Mean",
         width=720, height=370, legend_position="top_left",
     )
 
 
-# ────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------
+# Tab 5: Latitude / Longitude Profiles
+# ----------------------------------------------------------------
+@pn.depends(_update_counter)
+def _lat_profile(trigger=None):
+    s = state
+    df = _get_filtered()
+    var = _current_var()
+    if df.empty or not s.lat_key:
+        return pn.pane.Markdown("No latitude dimension available.")
+
+    non_lat = [d for d in s.dim_info if d != s.lat_key and d in df.columns]
+    agg = DimensionAggregate(
+        dimensions=non_lat, method="mean", value_columns=[var],
+    ).apply(df) if non_lat else df
+    agg_sorted = agg.sort_values(s.lat_key)
+
+    mean_plot = agg_sorted.hvplot.line(
+        x=s.lat_key, y=var, color="#1976D2", label="Mean",
+        title=f"{var} by Latitude (zonal mean)", width=720, height=370,
+    )
+
+    # Add min/max envelope if we have enough data
+    if s.has_time or len(non_lat) > 0:
+        try:
+            agg_min = df.groupby(s.lat_key, as_index=False)[var].min().sort_values(s.lat_key)
+            agg_max = df.groupby(s.lat_key, as_index=False)[var].max().sort_values(s.lat_key)
+            area = hv.Area(
+                (agg_min[s.lat_key], agg_min[var], agg_max[var]),
+                vdims=["y", "y2"],
+            ).opts(alpha=0.2, color="#1976D2")
+            return area * mean_plot
+        except Exception:
+            pass
+    return mean_plot
+
+
+@pn.depends(_update_counter)
+def _lon_profile(trigger=None):
+    s = state
+    df = _get_filtered()
+    var = _current_var()
+    if df.empty or not s.lon_key:
+        return pn.pane.Markdown("No longitude dimension available.")
+
+    non_lon = [d for d in s.dim_info if d != s.lon_key and d in df.columns]
+    agg = DimensionAggregate(
+        dimensions=non_lon, method="mean", value_columns=[var],
+    ).apply(df) if non_lon else df
+    agg_sorted = agg.sort_values(s.lon_key)
+
+    return agg_sorted.hvplot.line(
+        x=s.lon_key, y=var, color="#E91E63",
+        title=f"{var} by Longitude (meridional mean)", width=720, height=370,
+    )
+
+
+# ----------------------------------------------------------------
+# Tab 6: Histogram / Distribution
+# ----------------------------------------------------------------
+@pn.depends(_update_counter)
+def _histogram(trigger=None):
+    s = state
+    df = _get_filtered()
+    var = _current_var()
+    if df.empty:
+        return pn.pane.Markdown("No data for selected range.")
+
+    values = df[var].dropna()
+    stats_md = (
+        f"**Count:** {len(values):,} | "
+        f"**Mean:** {values.mean():.4f} | "
+        f"**Std:** {values.std():.4f} | "
+        f"**Min:** {values.min():.4f} | "
+        f"**Max:** {values.max():.4f} | "
+        f"**Median:** {values.median():.4f}"
+    )
+
+    hist = values.hvplot.hist(
+        bins=50, color="#7B1FA2", alpha=0.7,
+        title=f"Distribution of {var}", width=720, height=350,
+        xlabel=var, ylabel="Count",
+    )
+    kde = values.hvplot.kde(
+        color="#FF6F00", line_width=2, ylabel="",
+    )
+
+    return pn.Column(
+        pn.pane.Markdown(stats_md, width=720),
+        pn.pane.HoloViews(hist * kde, width=720, height=370),
+    )
+
+
+# ----------------------------------------------------------------
+# Tab 7: Cross-Variable Comparison
+# ----------------------------------------------------------------
+compare_var_x = pn.widgets.Select(name="X Variable", options=[], value=None)
+compare_var_y = pn.widgets.Select(name="Y Variable", options=[], value=None)
+
+
+def _update_compare_options():
+    tables = state.tables
+    compare_var_x.options = tables
+    compare_var_y.options = tables
+    if len(tables) >= 2:
+        compare_var_x.value = tables[0]
+        compare_var_y.value = tables[1]
+    elif len(tables) == 1:
+        compare_var_x.value = tables[0]
+        compare_var_y.value = tables[0]
+
+
+@pn.depends(_update_counter, compare_var_x, compare_var_y)
+def _cross_variable(trigger=None, vx=None, vy=None):
+    s = state
+    if not compare_var_x.value or not compare_var_y.value:
+        return pn.pane.Markdown("Select two variables to compare.")
+
+    var_x = compare_var_x.value
+    var_y = compare_var_y.value
+
+    try:
+        df_x = s.source.execute(f"SELECT * FROM {var_x}")
+        df_y = s.source.execute(f"SELECT * FROM {var_y}")
+    except Exception as e:
+        return pn.pane.Markdown(f"Error loading data: {e}")
+
+    # Merge on shared coordinates
+    shared_coords = [c for c in df_x.columns if c in df_y.columns and c != var_x and c != var_y]
+    if not shared_coords:
+        return pn.pane.Markdown("No shared coordinates between variables.")
+
+    merged = pd.merge(df_x, df_y, on=shared_coords, how="inner")
+    if merged.empty:
+        return pn.pane.Markdown("No overlapping data between variables.")
+
+    # Subsample for performance
+    if len(merged) > 10000:
+        merged = merged.sample(10000, random_state=42)
+
+    # Compute correlation
+    corr = merged[var_x].corr(merged[var_y])
+
+    scatter = merged.hvplot.scatter(
+        x=var_x, y=var_y, color="#00897B", alpha=0.3, size=3,
+        title=f"{var_x} vs {var_y} (r = {corr:.3f})",
+        width=720, height=400,
+    )
+
+    return pn.Column(
+        pn.pane.Markdown(
+            f"**Correlation:** {corr:.4f} | "
+            f"**Points:** {len(merged):,} | "
+            f"**Shared coords:** {', '.join(shared_coords)}",
+            width=720,
+        ),
+        pn.pane.HoloViews(scatter, width=720, height=420),
+    )
+
+
+# ----------------------------------------------------------------
+# Tab 8: Statistics Summary
+# ----------------------------------------------------------------
+@pn.depends(_update_counter)
+def _statistics(trigger=None):
+    s = state
+    rows = []
+    for tbl in s.tables:
+        try:
+            df = s.source.execute(f"SELECT * FROM {tbl}")
+            vals = df[tbl].dropna()
+            rows.append({
+                "Variable": tbl,
+                "Count": len(vals),
+                "Mean": round(vals.mean(), 4),
+                "Std": round(vals.std(), 4),
+                "Min": round(vals.min(), 4),
+                "25%": round(vals.quantile(0.25), 4),
+                "Median": round(vals.median(), 4),
+                "75%": round(vals.quantile(0.75), 4),
+                "Max": round(vals.max(), 4),
+            })
+        except Exception:
+            rows.append({"Variable": tbl, "Count": "Error"})
+
+    stats_df = pd.DataFrame(rows)
+    return pn.pane.DataFrame(stats_df, width=720, index=False)
+
+
+# ----------------------------------------------------------------
+# Data Export
+# ----------------------------------------------------------------
+export_format = pn.widgets.Select(
+    name="Format", options=["CSV", "Parquet", "JSON"], value="CSV", width=120,
+)
+export_btn = pn.widgets.Button(name="Export Filtered Data", button_type="warning", width=200)
+export_status = pn.pane.Markdown("", width=400)
+download_widget = pn.Column()
+
+
+def _on_export(event):
+    try:
+        df = _get_filtered()
+        var = _current_var()
+        fmt = export_format.value
+
+        if fmt == "CSV":
+            buf = io.StringIO()
+            df.to_csv(buf, index=False)
+            content = buf.getvalue()
+            filename = f"{var}_filtered.csv"
+        elif fmt == "Parquet":
+            buf = io.BytesIO()
+            df.to_parquet(buf, index=False)
+            content = buf.getvalue()
+            filename = f"{var}_filtered.parquet"
+        elif fmt == "JSON":
+            content = df.to_json(orient="records", date_format="iso")
+            filename = f"{var}_filtered.json"
+
+        if isinstance(content, str):
+            content = content.encode("utf-8")
+
+        fd = pn.widgets.FileDownload(
+            callback=lambda c=content: io.BytesIO(c),
+            filename=filename,
+            button_type="success",
+            label=f"Download {filename}",
+        )
+        download_widget.clear()
+        download_widget.append(fd)
+        export_status.object = f"**Ready:** {len(df):,} rows, {len(content):,} bytes"
+    except Exception as e:
+        export_status.object = f"**Error:** {e}"
+
+
+export_btn.on_click(_on_export)
+
+
+# ----------------------------------------------------------------
 # SQL Explorer
-# ────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------
 sql_input = pn.widgets.TextAreaInput(name="SQL Query", height=100, width=650)
 sql_run = pn.widgets.Button(name="Run Query", button_type="primary")
 sql_status = pn.pane.Markdown("")
@@ -438,9 +684,9 @@ sql_run.on_click(_run_sql)
 _set_default_sql()
 
 
-# ────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------
 # Dataset Info pane
-# ────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------
 info_pane = pn.pane.Markdown("", width=720)
 
 
@@ -452,7 +698,7 @@ def _build_info():
     md += f"**Data points:** {s.size_info['rows']:,} ({s.size_info['estimated_mb']} MB est.)\n\n"
     md += "| Dimension | Type | Range | Size |\n|---|---|---|---|\n"
     for dim, d in s.dim_info.items():
-        md += f"| {dim} | {d['type']} | {d.get('min', 'N/A')} — {d.get('max', 'N/A')} | {d['size']} |\n"
+        md += f"| {dim} | {d['type']} | {d.get('min', 'N/A')} - {d.get('max', 'N/A')} | {d['size']} |\n"
 
     if len(s.tables) > 1:
         md += "\n### All Variables\n"
@@ -472,9 +718,9 @@ def _build_info():
 _build_info()
 
 
-# ────────────────────────────────────────────────────────────
-# Tabs container — rebuilt when dataset changes
-# ────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------
+# Tabs container - rebuilt when dataset changes
+# ----------------------------------------------------------------
 main_tabs = pn.Tabs()
 
 
@@ -484,24 +730,61 @@ def _rebuild_tabs():
 
     _set_default_sql()
     _build_info()
+    _update_compare_options()
 
     main_tabs.clear()
+
+    # Spatial Heatmap
     if s.has_spatial or len(s.dim_info) >= 2:
         main_tabs.append(("Spatial Heatmap", pn.panel(_spatial_heatmap)))
+
+    # Time Series
     if s.has_time:
         main_tabs.append(("Time Series", pn.panel(_time_series)))
         main_tabs.append(("Anomaly", pn.panel(_anomaly)))
         main_tabs.append(("Rolling Mean", pn.panel(_rolling)))
+
+    # Lat/Lon Profiles
+    if s.lat_key:
+        profile_tabs = pn.Tabs(("Latitude Profile", pn.panel(_lat_profile)))
+        if s.lon_key:
+            profile_tabs.append(("Longitude Profile", pn.panel(_lon_profile)))
+        main_tabs.append(("Profiles", profile_tabs))
+
+    # Histogram
+    main_tabs.append(("Distribution", pn.panel(_histogram)))
+
+    # Cross-Variable Comparison
+    if len(s.tables) >= 2:
+        main_tabs.append(("Compare Variables", pn.Column(
+            pn.Row(compare_var_x, compare_var_y),
+            pn.panel(_cross_variable),
+        )))
+
+    # Statistics
+    main_tabs.append(("Statistics", pn.panel(_statistics)))
+
+    # SQL Explorer
     main_tabs.append(("SQL Explorer", pn.Column(sql_input, sql_run, sql_status, sql_result)))
+
+    # Export
+    main_tabs.append(("Export", pn.Column(
+        "### Export Filtered Data",
+        pn.Row(export_format, export_btn),
+        export_status,
+        download_widget,
+    )))
+
+    # Dataset Info
     main_tabs.append(("Dataset Info", info_pane))
 
 
 _rebuild_tabs()
 
 
-# ────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------
 # Template
-# ────────────────────────────────────────────────────────────
+# ----------------------------------------------------------------
 sidebar = pn.Column(
     "## Load Data",
     file_input,
@@ -527,7 +810,7 @@ template = pn.template.FastListTemplate(
     header_background="#1976D2",
 )
 
-# ── CLI arg support (panel serve ... --args file.nc) ──
+# -- CLI arg support (panel serve ... --args file.nc) --
 argv = getattr(pn.state, "argv", None) or sys.argv[1:]
 _parser = argparse.ArgumentParser()
 _parser.add_argument("dataset", nargs="?", default=None)
