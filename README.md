@@ -345,6 +345,7 @@ pip install -e ".[all,test,examples]"
 lumen-xarray/
 ├── lumen_xarray/
 │   ├── __init__.py           # Public API
+│   ├── _base.py              # Shared mixin and utilities
 │   ├── source.py             # XArraySQLSource - SQL via DataFusion
 │   ├── basic_source.py       # XArraySource - native xarray ops
 │   ├── transforms.py         # 6 scientific data transforms

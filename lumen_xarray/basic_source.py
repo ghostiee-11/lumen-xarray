@@ -23,10 +23,10 @@ import xarray as xr
 from lumen.sources.base import Source, cached, cached_schema, cached_metadata
 from lumen.util import get_dataframe_schema
 
-from .source import XARRAY_ENGINES, _detect_engine
+from ._base import XArrayMixin, _detect_engine
 
 
-class XArraySource(Source):
+class XArraySource(Source, XArrayMixin):
     """
     DataFrame-based xarray source for Lumen.
 
@@ -78,23 +78,14 @@ class XArraySource(Source):
 
     def _load_dataset(self):
         """Load the xarray dataset from URI or use provided dataset."""
-        if self._dataset is None and self.uri is not None:
-            engine = self.engine or _detect_engine(self.uri)
-            kw = dict(self.open_kwargs)
-            if engine:
-                kw["engine"] = engine
-            if self.chunks is not None:
-                kw["chunks"] = self.chunks
-            self._dataset = xr.open_dataset(self.uri, **kw)
-        elif self._dataset is None:
-            raise ValueError("Either 'uri' or '_dataset' must be provided.")
-
-        if self.variables:
-            available = list(self._dataset.data_vars)
-            missing = [v for v in self.variables if v not in available]
-            if missing:
-                raise ValueError(f"Variables {missing} not found. Available: {available}")
-            self._dataset = self._dataset[self.variables]
+        self._dataset = self._load_and_filter_dataset(
+            dataset=self._dataset,
+            uri=self.uri,
+            engine=self.engine,
+            chunks=self.chunks,
+            open_kwargs=self.open_kwargs,
+            variables=self.variables,
+        )
 
     @property
     def dataset(self) -> xr.Dataset:
@@ -203,45 +194,14 @@ class XArraySource(Source):
         return self._get_table_metadata(tables)
 
     def _get_table_metadata(self, tables: list[str]) -> dict[str, Any]:
-        """Build metadata from xarray attributes."""
-        ds = self._dataset
-        metadata = {}
+        """Delegate to shared mixin for metadata extraction."""
+        return self._build_table_metadata(self._dataset, tables)
 
-        for tbl in tables:
-            if tbl not in ds.data_vars:
-                continue
-            var = ds[tbl]
-            attrs = dict(var.attrs)
-
-            columns = {}
-            for coord_name in var.dims:
-                coord = ds.coords[coord_name]
-                coord_attrs = dict(coord.attrs)
-                col = {"data_type": str(coord.dtype), "is_coordinate": True}
-                if "units" in coord_attrs:
-                    col["units"] = coord_attrs["units"]
-                if "long_name" in coord_attrs:
-                    col["description"] = coord_attrs["long_name"]
-                columns[coord_name] = col
-
-            col = {"data_type": str(var.dtype), "is_coordinate": False}
-            if "units" in attrs:
-                col["units"] = attrs["units"]
-            if "long_name" in attrs:
-                col["description"] = attrs["long_name"]
-            columns[tbl] = col
-
-            dims_str = " x ".join(f"{d}({ds.sizes[d]})" for d in var.dims)
-            desc = attrs.get("long_name", tbl)
-            if "units" in attrs:
-                desc += f" [{attrs['units']}]"
-
-            metadata[tbl] = {
-                "description": f"{desc} — dims: {dims_str}",
-                "columns": columns,
-            }
-
-        return metadata
+    def get_dimension_info(self, table: str | None = None) -> dict[str, Any]:
+        """Return detailed dimension information for UI controls."""
+        tables = [table] if table else list(self._dataset.data_vars)
+        info = self._build_dimension_info(self._dataset, tables)
+        return info if table is None else info.get(table, {})
 
     # ---- Native xarray operations ----
 

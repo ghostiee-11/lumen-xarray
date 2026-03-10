@@ -7,6 +7,12 @@ Provides the glue code needed to make Lumen AI work with xarray files:
 - CLI path resolution for `lumen-ai serve data.nc`
 - Source code generation for the AIHandler template
 
+NOTE: These hooks are designed to match Lumen AI's internal API
+(lumen.ai.controls.base) based on reading Lumen's source code.
+They have NOT been integration-tested against a running Lumen AI
+instance, as the full coordinator integration does not exist yet.
+Unit tests verify each function in isolation.
+
 Usage in Lumen AI:
     # Register xarray upload handler
     from lumen_xarray.ai import register_xarray_handlers
@@ -24,7 +30,8 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
-from .source import XARRAY_ENGINES, XARRAY_EXTENSIONS, XArraySQLSource, _detect_engine
+from ._base import XARRAY_EXTENSIONS, _detect_engine
+from .source import XArraySQLSource
 
 # Extensions that Lumen AI should recognize as xarray-compatible
 TABLE_EXTENSIONS_XARRAY = (

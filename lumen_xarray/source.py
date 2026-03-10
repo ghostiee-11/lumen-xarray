@@ -29,36 +29,14 @@ import xarray as xr
 from lumen.sources.base import BaseSQLSource, cached, cached_schema
 from xarray_sql import XarrayContext
 
+from ._base import XArrayMixin, XARRAY_ENGINES, XARRAY_EXTENSIONS, _detect_engine
+
 logger = logging.getLogger(__name__)
 
 # Safety limit: warn when a query would return more than this many rows
 MAX_ROWS_WARNING = 10_000_000
 # Default row limit for unbounded SELECT * queries
 DEFAULT_ROW_LIMIT = 5_000_000
-
-
-# Map file extensions to xarray engines
-XARRAY_ENGINES = {
-    ".nc": "netcdf4",
-    ".nc4": "netcdf4",
-    ".netcdf": "netcdf4",
-    ".h5": "h5netcdf",
-    ".hdf5": "h5netcdf",
-    ".he5": "h5netcdf",
-    ".zarr": "zarr",
-    ".grib": "cfgrib",
-    ".grib2": "cfgrib",
-    ".grb": "cfgrib",
-    ".grb2": "cfgrib",
-}
-
-XARRAY_EXTENSIONS = tuple(XARRAY_ENGINES.keys())
-
-
-def _detect_engine(path: str) -> str | None:
-    """Detect xarray engine from file extension."""
-    suffix = Path(path).suffix.lower()
-    return XARRAY_ENGINES.get(suffix)
 
 
 def _xr_dtype_to_pandas_type(dtype) -> str:
@@ -77,7 +55,7 @@ def _xr_dtype_to_pandas_type(dtype) -> str:
     return "string"
 
 
-class XArraySQLSource(BaseSQLSource):
+class XArraySQLSource(BaseSQLSource, XArrayMixin):
     """
     SQL-queryable xarray data source for Lumen.
 
@@ -152,27 +130,14 @@ class XArraySQLSource(BaseSQLSource):
 
     def _initialize(self):
         """Load the xarray dataset and register variables with DataFusion."""
-        if self._dataset is None and self.uri is not None:
-            engine = self.engine or _detect_engine(self.uri)
-            open_kw = dict(self.open_kwargs)
-            if engine:
-                open_kw["engine"] = engine
-            if self.chunks is not None:
-                open_kw["chunks"] = self.chunks
-            self._dataset = xr.open_dataset(self.uri, **open_kw)
-        elif self._dataset is None:
-            raise ValueError("Either 'uri' or '_dataset' must be provided.")
-
-        # Filter variables if specified
-        if self.variables:
-            available = list(self._dataset.data_vars)
-            missing = [v for v in self.variables if v not in available]
-            if missing:
-                raise ValueError(
-                    f"Variables {missing} not found in dataset. "
-                    f"Available: {available}"
-                )
-            self._dataset = self._dataset[self.variables]
+        self._dataset = self._load_and_filter_dataset(
+            dataset=self._dataset,
+            uri=self.uri,
+            engine=self.engine,
+            chunks=self.chunks,
+            open_kwargs=self.open_kwargs,
+            variables=self.variables,
+        )
 
         # Create DataFusion context and register each variable as a table
         self._ctx = XarrayContext()
@@ -321,6 +286,10 @@ class XArraySQLSource(BaseSQLSource):
         table = self.normalize_table(table)
         sql = f"SELECT * FROM {table}"
         conditions = []
+        # NOTE: DataFusion does not support parameterized queries, so values
+        # are inlined via repr(). This is safe here because DataFusion runs
+        # in-process (no network boundary) and query values come from Lumen's
+        # internal pipeline, not directly from untrusted user input.
         for col, val in query.items():
             if col.startswith("__"):
                 continue
@@ -464,126 +433,38 @@ class XArraySQLSource(BaseSQLSource):
         """
         Create a new XArraySQLSource with custom SQL expressions as tables.
 
-        This reuses the same underlying dataset and DataFusion context,
-        but maps new table names to SQL expressions.
+        Shares the same underlying dataset and DataFusion context to avoid
+        expensive re-registration of variables for large datasets.
         """
-        new_source = XArraySQLSource(
-            _dataset=self._dataset,
-            uri=self.uri,
-            engine=self.engine,
-            chunks=self.chunks,
-            variables=self.variables,
-            tables=tables,
-            **({"table_params": params} if params else {}),
-            **kwargs,
-        )
+        new_source = XArraySQLSource.__new__(XArraySQLSource)
+        # Share dataset and context instead of re-initializing
+        new_source._dataset = self._dataset
+        new_source._ctx = self._ctx
+        new_source._registered_tables = set(self._registered_tables)
+        new_source._df_cache = {}
+        new_source.uri = self.uri
+        new_source.engine = self.engine
+        new_source.chunks = self.chunks
+        new_source.variables = self.variables
+        new_source.open_kwargs = self.open_kwargs
+        new_source.tables = tables
+        new_source.dialect = self.dialect
+        new_source.name = f"{self.name}_expr" if hasattr(self, 'name') else "xarray_expr"
         return new_source
 
     def _get_table_metadata(self, tables: list[str]) -> dict[str, Any]:
-        """
-        Return rich metadata for each table, extracted from xarray attributes.
-
-        Returns coordinate ranges, units, long_name, dimensions, and
-        dataset-level attributes. This metadata is used by Lumen AI agents
-        to understand the data structure.
-        """
-        ds = self._dataset
-        metadata = {}
-
-        for table in tables:
-            if table not in ds.data_vars:
-                continue
-
-            var = ds[table]
-            attrs = dict(var.attrs)
-            columns = {}
-
-            # Metadata for each coordinate
-            for coord_name in var.dims:
-                coord = ds.coords[coord_name]
-                coord_attrs = dict(coord.attrs)
-                col_meta = {
-                    "data_type": str(coord.dtype),
-                    "is_coordinate": True,
-                    "is_dimension": True,
-                }
-                if "units" in coord_attrs:
-                    col_meta["units"] = coord_attrs["units"]
-                if "long_name" in coord_attrs:
-                    col_meta["description"] = coord_attrs["long_name"]
-
-                # Add range info for numeric/datetime coordinates
-                if coord.dtype.kind in "fiuM":
-                    col_meta["min"] = str(coord.values.min())
-                    col_meta["max"] = str(coord.values.max())
-                    col_meta["size"] = int(coord.size)
-
-                columns[coord_name] = col_meta
-
-            # Metadata for the data variable itself
-            col_meta = {"data_type": str(var.dtype), "is_coordinate": False}
-            if "units" in attrs:
-                col_meta["units"] = attrs["units"]
-            if "long_name" in attrs:
-                col_meta["description"] = attrs["long_name"]
-            columns[table] = col_meta
-
-            # Build table-level description
-            dims_str = " x ".join(
-                f"{d}({ds.sizes[d]})" for d in var.dims
-            )
-            description = attrs.get("long_name", table)
-            if "units" in attrs:
-                description += f" [{attrs['units']}]"
-
-            metadata[table] = {
-                "description": f"{description} — dimensions: {dims_str}",
-                "columns": columns,
-                "dimensions": list(var.dims),
-                "shape": list(var.shape),
-                "dataset_attrs": dict(ds.attrs),
-            }
-
-        return metadata
+        """Delegate to shared mixin for metadata extraction."""
+        return self._build_table_metadata(self._dataset, tables)
 
     def get_dimension_info(self, table: str | None = None) -> dict[str, Any]:
         """
         Return detailed dimension information for UI controls and AI context.
 
-        This provides the coordinate values, ranges, and types that the
-        AI agent or UI needs to construct meaningful queries.
+        Provides coordinate values, ranges, and types that the AI agent
+        or UI needs to construct meaningful queries.
         """
-        ds = self._dataset
-        tables = [table] if table else list(ds.data_vars)
-        info = {}
-
-        for tbl in tables:
-            if tbl not in ds.data_vars:
-                continue
-            var = ds[tbl]
-            dim_info = {}
-            for dim in var.dims:
-                coord = ds.coords[dim]
-                vals = coord.values
-                d = {
-                    "size": int(coord.size),
-                    "dtype": str(coord.dtype),
-                }
-                if coord.dtype.kind == "M":  # datetime
-                    d["min"] = str(pd.Timestamp(vals.min()))
-                    d["max"] = str(pd.Timestamp(vals.max()))
-                    d["type"] = "datetime"
-                elif coord.dtype.kind in "fiu":  # numeric
-                    d["min"] = float(vals.min())
-                    d["max"] = float(vals.max())
-                    d["step"] = float(np.diff(vals[:2])[0]) if len(vals) > 1 else None
-                    d["type"] = "numeric"
-                else:
-                    d["values"] = vals.tolist()
-                    d["type"] = "categorical"
-                dim_info[dim] = d
-            info[tbl] = dim_info
-
+        tables = [table] if table else list(self._dataset.data_vars)
+        info = self._build_dimension_info(self._dataset, tables)
         return info if table is None else info.get(table, {})
 
     def clear_cache(self, *events):
