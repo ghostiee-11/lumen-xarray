@@ -6,8 +6,8 @@
 [![Python](https://img.shields.io/badge/python-3.10%2B-blue)]()
 [![License](https://img.shields.io/badge/license-BSD--3-lightgrey)]()
 
-> **GSoC 2026 Prototype** for the [Lumen + Xarray Integration](https://github.com/holoviz/lumen/issues/1508) project (HoloViz / NumFOCUS)
->
+Part of the [HoloViz](https://holoviz.org/) ecosystem - extends [Lumen](https://github.com/holoviz/lumen) to work with N-dimensional scientific data.
+
 > Related: [holoviz/lumen#1508](https://github.com/holoviz/lumen/issues/1508) | [holoviz/lumen#1434](https://github.com/holoviz/lumen/pull/1434)
 
 ---
@@ -377,20 +377,6 @@ lumen-xarray/
 7. **Async-first for AI** - `execute_async()` and `get_async()` run in thread pools for non-blocking agent workflows.
 
 8. **Adaptive dashboard** - Widgets and tabs auto-generate from dataset dimensions. Works with any xarray dataset, not just the demo.
-
-## GSoC Proposal Context
-
-This prototype implements the core deliverables of the [Lumen + Xarray Integration](https://github.com/holoviz/lumen/issues/1508) GSoC project:
-
-| Deliverable | Status | Implementation |
-|------------|--------|---------------|
-| XArraySource class | Done | `source.py` + `basic_source.py` |
-| AI Integration | Done | `ai.py` - upload, CLI, code generation |
-| SQL Transform Support | Done | `get_schema`/`get`/`get_sql_expr` for DataFusion |
-| Pipeline Integration | Done | `sql_transforms`, `normalize_table`, async |
-| Tests & Documentation | Done | 126 tests, README, examples |
-
-**Remaining GSoC work:** upstream into `lumen/sources/`, full Lumen AI coordinator integration, cloud Zarr via fsspec, performance optimization, user documentation.
 
 ## License
 
