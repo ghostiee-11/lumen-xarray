@@ -13,18 +13,17 @@
 <h1 align="center">lumen-xarray</h1>
 
 <p align="center">
-  <strong>Native xarray support for Lumen -- SQL-queryable N-dimensional scientific data</strong>
+  <strong>Native xarray support for Lumen - SQL-queryable N-dimensional scientific data</strong>
 </p>
 
 <p align="center">
-  <a href="https://github.com/ghostiee-11/lumen-xarray/actions/workflows/ci.yml"><img src="https://github.com/ghostiee-11/lumen-xarray/actions/workflows/ci.yml/badge.svg" alt="CI"></a>
   <img src="https://img.shields.io/badge/tests-206%20passed-brightgreen" alt="Tests">
   <img src="https://img.shields.io/badge/python-3.10%2B-blue" alt="Python">
   <img src="https://img.shields.io/badge/license-BSD--3-lightgrey" alt="License">
 </p>
 
 <p align="center">
-  Part of the <a href="https://holoviz.org/">HoloViz</a> ecosystem -- extends <a href="https://github.com/holoviz/lumen">Lumen</a> to work with N-dimensional scientific data.
+  Part of the <a href="https://holoviz.org/">HoloViz</a> ecosystem - extends <a href="https://github.com/holoviz/lumen">Lumen</a> to work with N-dimensional scientific data.
 </p>
 
 <p align="center">
@@ -35,7 +34,7 @@
 
 ## The Problem
 
-[Lumen](https://github.com/holoviz/lumen) is a framework for building AI-powered data applications. It currently operates on **tabular data** (CSV, Parquet, SQL) via DuckDB. Scientists and researchers, however, work with **N-dimensional labeled datasets** -- temperature grids across time/lat/lon, satellite imagery, genomics matrices -- stored in NetCDF, Zarr, HDF5, and GRIB.
+[Lumen](https://github.com/holoviz/lumen) is a framework for building AI-powered data applications. It currently operates on **tabular data** (CSV, Parquet, SQL) via DuckDB. Scientists and researchers, however, work with **N-dimensional labeled datasets** - temperature grids across time/lat/lon, satellite imagery, genomics matrices - stored in NetCDF, Zarr, HDF5, and GRIB.
 
 **lumen-xarray** bridges this gap: it registers xarray datasets with [Apache DataFusion](https://datafusion.apache.org/) (via [xarray-sql](https://github.com/alxmrs/xarray-sql)) and exposes them through Lumen's Source API. This lets Lumen AI agents generate SQL queries against scientific data and makes the full pipeline ecosystem work with multidimensional data.
 
@@ -67,8 +66,8 @@
 | **Geographic Maps** | GeoViews + Cartopy projected maps with coastlines (optional) |
 | **AI Integration** | Lumen AI hooks, context builder, suggested queries, 4 Analysis subclasses |
 | **Dashboard** | Adaptive Panel dashboard with grouped tabs, Tabulator, export, SQL explorer |
-| **Performance** | SQL-level spatial binning -- 68M cells in < 5s (34x speedup over naive GROUP BY) |
-| **Formats** | NetCDF, Zarr, HDF5, GRIB -- local and remote (S3, GCS, OpenDAP) |
+| **Performance** | SQL-level spatial binning - 68M cells in < 5s (34x speedup over naive GROUP BY) |
+| **Formats** | NetCDF, Zarr, HDF5, GRIB - local and remote (S3, GCS, OpenDAP) |
 
 ---
 
@@ -78,7 +77,7 @@ The dashboard auto-adapts to **any** xarray dataset. Widgets, tabs, and SQL quer
 
 ### Spatial Map
 
-> Relative humidity from NCEP/NCAR Reanalysis -- spatial binning renders 68M+ cells interactively
+> Relative humidity from NCEP/NCAR Reanalysis - spatial binning renders 68M+ cells interactively
 
 ![Spatial Map](screenshots/01_spatial_map_rhum.png)
 
@@ -294,7 +293,7 @@ The dashboard uses **SQL-level spatial binning** to handle large datasets effici
 | Dataset | Grid Size | Naive Query | Binned Query | Speedup |
 |---------|-----------|-------------|--------------|---------|
 | Smith & Sandwell Topography | 6336 x 10800 (68M cells) | 146s | 4.3s | **34x** |
-| NCEP/NCAR Reanalysis | 73 x 144 (10K cells) | 0.8s | 0.8s (no binning) | -- |
+| NCEP/NCAR Reanalysis | 73 x 144 (10K cells) | 0.8s | 0.8s (no binning) | - |
 
 A resolution control widget lets users switch between Auto, Low, Medium, High, and Full resolution.
 
@@ -315,7 +314,7 @@ A resolution control widget lets users switch between Auto, Low, Medium, High, a
 |-----------|-------------|
 | `DimensionSlice` | Slice by range, values, or nearest match along any dimension |
 | `SpatialBBox` | Filter to a lat/lon bounding box |
-| `DimensionAggregate` | Reduce dimensions -- auto-detects coordinates vs. data columns |
+| `DimensionAggregate` | Reduce dimensions - auto-detects coordinates vs. data columns |
 | `TimeResample` | Resample time series (daily to monthly, etc.) with spatial grouping |
 | `Anomaly` | Deviations from climatological mean (monthly, seasonal, overall) |
 | `RollingWindow` | Moving average/sum/std for time series smoothing |
@@ -345,8 +344,8 @@ A resolution control widget lets users switch between Auto, Low, Medium, High, a
 |--------|-----------|--------|--------|
 | NetCDF | `.nc`, `.nc4`, `.netcdf` | `netcdf4` | OpenDAP URLs |
 | Zarr | `.zarr` | `zarr` | S3, GCS, HTTP via fsspec |
-| HDF5 | `.h5`, `.hdf5`, `.he5` | `h5netcdf` | -- |
-| GRIB | `.grib`, `.grib2`, `.grb` | `cfgrib` | -- |
+| HDF5 | `.h5`, `.hdf5`, `.he5` | `h5netcdf` | - |
+| GRIB | `.grib`, `.grib2`, `.grb` | `cfgrib` | - |
 
 ---
 
@@ -403,8 +402,8 @@ lumen-xarray/
 ├── lumen_xarray/
 │   ├── __init__.py           # Public API (20+ exports)
 │   ├── _base.py              # Shared mixin, multi-file support, format detection
-│   ├── source.py             # XArraySQLSource -- SQL via DataFusion
-│   ├── basic_source.py       # XArraySource -- native xarray ops
+│   ├── source.py             # XArraySQLSource - SQL via DataFusion
+│   ├── basic_source.py       # XArraySource - native xarray ops
 │   ├── transforms.py         # 10 scientific data transforms
 │   ├── cf.py                 # CF conventions auto-detection
 │   ├── analyses.py           # 4 Lumen AI Analysis subclasses
@@ -418,23 +417,23 @@ lumen-xarray/
 
 ## Design Decisions
 
-1. **DataFusion over DuckDB** -- xarray-sql uses Apache DataFusion. We set `dialect="postgres"` for sqlglot since DataFusion's SQL is PostgreSQL-compatible.
+1. **DataFusion over DuckDB** - xarray-sql uses Apache DataFusion. We set `dialect="postgres"` for sqlglot since DataFusion's SQL is PostgreSQL-compatible.
 
-2. **Two source classes** -- `XArraySQLSource` for Lumen AI (agents need `execute()`), `XArraySource` for programmatic use with native xarray ops.
+2. **Two source classes** - `XArraySQLSource` for Lumen AI (agents need `execute()`), `XArraySource` for programmatic use with native xarray ops.
 
-3. **Per-variable tables** -- Each data variable becomes a SQL table. Coordinates (time, lat, lon) become columns in each table.
+3. **Per-variable tables** - Each data variable becomes a SQL table. Coordinates (time, lat, lon) become columns in each table.
 
-4. **CF-first coordinate detection** -- Uses `cf-xarray` for robust coordinate role detection (standard_name, axis attributes), falls back to name heuristics when cf-xarray is not installed.
+4. **CF-first coordinate detection** - Uses `cf-xarray` for robust coordinate role detection (standard_name, axis attributes), falls back to name heuristics when cf-xarray is not installed.
 
-5. **Multi-file transparency** -- Pass a list or glob pattern as `uri` and `open_mfdataset` handles concatenation. Works identically to single-file loading downstream.
+5. **Multi-file transparency** - Pass a list or glob pattern as `uri` and `open_mfdataset` handles concatenation. Works identically to single-file loading downstream.
 
-6. **Coordinate-aware aggregation** -- `DimensionAggregate` auto-detects coordinate columns vs. data columns, so grouping and averaging work correctly.
+6. **Coordinate-aware aggregation** - `DimensionAggregate` auto-detects coordinate columns vs. data columns, so grouping and averaging work correctly.
 
-7. **Async-first for AI** -- `execute_async()` and `get_async()` run in thread pools for non-blocking agent workflows.
+7. **Async-first for AI** - `execute_async()` and `get_async()` run in thread pools for non-blocking agent workflows.
 
-8. **Adaptive dashboard** -- Widgets and tabs auto-generate from dataset dimensions and CF roles. Works with any xarray dataset.
+8. **Adaptive dashboard** - Widgets and tabs auto-generate from dataset dimensions and CF roles. Works with any xarray dataset.
 
-9. **SQL-level spatial binning** -- Large grids are binned at the SQL layer using `FLOOR()` expressions, not after loading into memory. This keeps DataFusion fast and avoids OOM on 100M+ cell datasets.
+9. **SQL-level spatial binning** - Large grids are binned at the SQL layer using `FLOOR()` expressions, not after loading into memory. This keeps DataFusion fast and avoids OOM on 100M+ cell datasets.
 
 ---
 
