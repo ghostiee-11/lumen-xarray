@@ -26,10 +26,6 @@
   Part of the <a href="https://holoviz.org/">HoloViz</a> ecosystem - extends <a href="https://github.com/holoviz/lumen">Lumen</a> to work with N-dimensional scientific data.
 </p>
 
-<p align="center">
-  Related: <a href="https://github.com/holoviz/lumen/issues/1508">holoviz/lumen#1508</a> | <a href="https://github.com/holoviz/lumen/pull/1434">holoviz/lumen#1434</a>
-</p>
-
 ---
 
 ## The Problem
