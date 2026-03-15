@@ -71,9 +71,42 @@
 
 The dashboard auto-adapts to **any** xarray dataset. Widgets, tabs, and SQL queries are generated dynamically from the data's dimensions and variables. Upload files or enter paths/URLs at runtime.
 
-### Spatial Map
+### Dashboard Overview
 
-> Relative humidity from NCEP/NCAR Reanalysis - spatial binning renders 68M+ cells interactively
+> Navigate through all tabs - Explore, Time Analysis, Analysis, Compare, and Tools
+
+![Dashboard Tabs](assets/all_tabs.gif)
+
+### Explore - Spatial Maps & Profiles
+
+> Spatial heatmaps, lat/lon profiles, vertical profiles, and distribution analysis
+
+![Explore](assets/explore_feature.gif)
+
+### Time Analysis
+
+> Time series, anomaly detection, rolling mean, linear trend, and Hovmoller diagrams
+
+![Time Analysis](assets/time_analysis.gif)
+
+### Advanced Analysis
+
+> Difference maps, cross-sections, correlation maps, and region statistics
+
+![Analysis](assets/analysis_feature.gif)
+
+### SQL Explorer
+
+> Write raw SQL queries against N-dimensional scientific data via Apache DataFusion
+
+![SQL Explorer](assets/sql_query.gif)
+
+---
+
+<details>
+<summary><strong>Static Screenshots</strong></summary>
+
+### Spatial Map
 
 ![Spatial Map](screenshots/01_spatial_map_rhum.png)
 
@@ -128,6 +161,8 @@ The dashboard auto-adapts to **any** xarray dataset. Widgets, tabs, and SQL quer
 <td align="center"><em>CF metadata, attributes, dimensions</em></td>
 </tr>
 </table>
+
+</details>
 
 ### Dashboard Tabs
 
